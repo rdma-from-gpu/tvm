@@ -378,3 +378,27 @@ int TVMArrayCopyToBytes(TVMArrayHandle handle, void* data, size_t nbytes) {
   ArrayCopyToBytes(handle, data, nbytes);
   API_END();
 }
+
+
+NDArray NDArray::EmptyWrapper(ShapeTuple shape, DLDataType dtype, Device dev, void * ptr) {
+  // NDArray ret = Internal::Create(shape, dtype, dev);
+  // ret.get_mutable()->dl_tensor.data = ptr;
+
+
+  NDArray::Container* container= new NDArray::Container();
+  NDArray ret(GetObjectPtr<Object>(container));
+  container->shape_ = std::move(shape);
+
+  container->SetDeleter(Internal::SelfDeleter);
+  container->dl_tensor.shape = const_cast<ShapeTuple::index_type*>(container->shape_.data());
+  container->dl_tensor.ndim = static_cast<int>(container->shape_.size());
+  container->dl_tensor.device = dev;
+  container->dl_tensor.dtype = dtype;
+
+  container->dl_tensor.data = ptr;
+
+
+  //data->shape_ = std::move(shape);
+
+  return ret;
+}

@@ -158,6 +158,20 @@ class NDArray : public ObjectRef {
    * \return The created NDArray view.
    */
   TVM_DLL static NDArray FromExternalDLTensor(const DLTensor& dl_tensor);
+
+/*!
+   * \brief Create an NDArray backed by a user given pointer.
+   * \param shape The shape of the new array.
+   * \param dtype The data type of the new array.
+   * \param dev The device of the array.
+   * \param ptr A pointer to the actual data
+   * \return The created Array
+   */
+  TVM_DLL static NDArray EmptyWrapper(ShapeTuple shape, DLDataType dtype, Device dev,
+                               void * ptr);
+
+
+
   /*!
    * \brief Create new NDArray, data is copied from DLTensor.
    *
