@@ -21,6 +21,8 @@
  * \file graph_executor_cuda_graph.cc
  */
 
+#include <cuda.h>
+#include <driver_types.h>
 #include <tvm/runtime/registry.h>
 
 #include "../../cuda/cuda_common.h"
@@ -63,20 +65,32 @@ class GraphExecutorCudaGraph : public GraphExecutor {
     CUDA_CALL(cudaStreamSynchronize(cuStream));
   }
 
+  CUgraphExec GetCudaGraphExec(){
+      return cuda_graph_exec_;
+  }
+  cudaGraph_t GetCudaGraph(){
+      return graph_;
+  }
+  cudaStream_t GetCudaStream(){
+      cudaStream_t cuStream = static_cast<cudaStream_t>(capture_stream_);
+      return cuStream;
+  }
+
   /*!
    * \brief End CUDA graph capture on stream, a graph will be created and
    * instantiated.
    */
-  void EndCapture() {
-    cudaGraph_t graph;
-    CUDA_CALL(cudaStreamEndCapture(static_cast<cudaStream_t>(capture_stream_), &graph));
+  void EndCapture(bool device) {
+    CUDA_CALL(cudaStreamEndCapture(static_cast<cudaStream_t>(capture_stream_), &graph_));
 
     cudaGraphNode_t* nodes = NULL;
     size_t numNodes = 0;
-    CUDA_CALL(cudaGraphGetNodes(graph, nodes, &numNodes));
+    CUDA_CALL(cudaGraphGetNodes(graph_, nodes, &numNodes));
     LOG(INFO) << "Num of nodes in the cuda graph created using stream capture API = " << numNodes;
 
-    CUDA_CALL(cudaGraphInstantiate(&cuda_graph_exec_, graph, NULL, NULL, 0));
+    int flags = 0;
+    flags |= device ? (cudaGraphInstantiateFlags::cudaGraphInstantiateFlagDeviceLaunch | cudaGraphInstantiateFlags::cudaGraphInstantiateFlagUpload) : 0;
+    CUDA_CALL(cudaGraphInstantiate(&cuda_graph_exec_, graph_, NULL, NULL, flags));
   }
 
   /*!
@@ -91,6 +105,7 @@ class GraphExecutorCudaGraph : public GraphExecutor {
   TVMStreamHandle capture_stream_;
   /*! \brief The captured CUDA graph will be instantiated to this. */
   cudaGraphExec_t cuda_graph_exec_;
+  cudaGraph_t graph_;
 };
 
 PackedFunc GraphExecutorCudaGraph::GetFunction(const std::string& name,
@@ -102,7 +117,25 @@ PackedFunc GraphExecutorCudaGraph::GetFunction(const std::string& name,
     return PackedFunc(
         [sptr_to_self, this](TVMArgs args, TVMRetValue* rv) { this->StartCapture(); });
   } else if (name == "end_capture") {
-    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) { this->EndCapture(); });
+    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) { this->EndCapture(false); });
+  } else if (name == "end_capture_device") {
+    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) { this->EndCapture(true); });
+  } else if (name == "get_cuda_graph") {
+    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+            void* graph = this->GetCudaGraph();
+            LOG(INFO) << "GET_CUDA_GRAPH: " << graph;
+            *rv = graph;
+            });
+  } else if (name == "get_cuda_graph_exec") {
+    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+            void* exec = this->GetCudaGraphExec();
+            *rv = exec;
+            });
+  } else if (name == "get_cuda_stream") {
+    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+            void* stream= this->GetCudaStream();
+            *rv = stream;
+            });
   } else {
     return GraphExecutor::GetFunction(name, sptr_to_self);
   }
