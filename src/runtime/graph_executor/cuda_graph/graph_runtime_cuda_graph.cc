@@ -54,6 +54,7 @@ class GraphExecutorCudaGraph : public GraphExecutor {
 
     CUDA_CALL(cudaStreamBeginCapture(static_cast<cudaStream_t>(capture_stream_),
                                      cudaStreamCaptureModeGlobal));
+    LOG(INFO) << "Start graph capturing on stream " << (static_cast<cudaStream_t>(capture_stream_));
   }
 
   /*!
@@ -82,6 +83,7 @@ class GraphExecutorCudaGraph : public GraphExecutor {
    */
   void EndCapture(bool device) {
     CUDA_CALL(cudaStreamEndCapture(static_cast<cudaStream_t>(capture_stream_), &graph_));
+    LOG(INFO) << "End graph capturing on stream " << (static_cast<cudaStream_t>(capture_stream_));
 
     cudaGraphNode_t* nodes = NULL;
     size_t numNodes = 0;
