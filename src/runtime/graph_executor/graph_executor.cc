@@ -643,6 +643,18 @@ PackedFunc GraphExecutor::GetFunction(const std::string& name,
         *rv = this->GetOutput(out_idx);
       }
     });
+  } else if (name == "get_input_idx") {
+    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+      CHECK(args.num_args == 1) << "Invalid number of arguments!";
+      int id = GetInputIndex((args[0].operator String()));
+        *rv = id;
+    });
+  } else if (name == "get_output_idx") {
+    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+      CHECK(args.num_args == 1) << "Invalid number of arguments!";
+      int id = GetOutputIndex((args[0].operator String()));
+        *rv = id;
+    });
   } else if (name == "get_input") {
     return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
       int in_idx = 0;
